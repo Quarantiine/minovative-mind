@@ -972,6 +972,14 @@ export class PlanExecutorService {
 					formattedDiff
 				);
 
+				this._postChatUpdateForPlanExecution({
+					type: "appendRealtimeModelMessage",
+					value: {
+						text: `Modified file \`${path.basename(step.step.path)}\``,
+					},
+					diffContent: formattedDiff,
+				});
+
 				changeLogger.logChange({
 					filePath: step.step.path,
 					changeType: "modified",
@@ -1011,6 +1019,13 @@ export class PlanExecutorService {
 					false,
 					formattedDiff
 				);
+
+				this._postChatUpdateForPlanExecution({
+					type: "appendRealtimeModelMessage",
+					value: { text: `Created file \`${path.basename(step.step.path)}\`` },
+					diffContent: formattedDiff,
+				});
+
 				changeLogger.logChange({
 					filePath: step.step.path,
 					changeType: "created",
@@ -1133,6 +1148,12 @@ export class PlanExecutorService {
 				false,
 				formattedDiff
 			);
+
+			this._postChatUpdateForPlanExecution({
+				type: "appendRealtimeModelMessage",
+				value: { text: `Modified file \`${path.basename(step.step.path)}\`` },
+				diffContent: formattedDiff,
+			});
 
 			changeLogger.logChange({
 				filePath: step.step.path,
