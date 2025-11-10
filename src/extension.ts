@@ -186,7 +186,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			let selectedText: string = "";
 			let effectiveRange: vscode.Range = originalSelection;
 			let diagnosticsString: string | undefined = undefined;
-			let mergeConflictString: string | undefined = undefined;
 			let userProvidedMessage: string | undefined = undefined;
 			let instruction: string | undefined;
 			let composedMessage: string;
@@ -425,7 +424,6 @@ export async function activate(context: vscode.ExtensionContext) {
 					formatOptions
 				);
 			}
-			// For /merge, mergeConflictString is already set above if conflicts exist.
 
 			// 6. Compose Message:
 			let contextDescription: string;
