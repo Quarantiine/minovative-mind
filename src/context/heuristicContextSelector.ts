@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { PlanGenerationContext } from "../sidebar/common/sidebarTypes";
 import { ActiveSymbolDetailedInfo } from "../services/contextService";
+import { DependencyRelation } from "./dependencyGraphBuilder";
 
 // Scoring weights constants
 const HIGH_RELEVANCE = 100;
@@ -16,7 +17,9 @@ export interface HeuristicSelectionOptions {
 	maxReverseDependencies: number;
 	maxCallHierarchyFiles: number;
 	sameDirectoryWeight: number;
-	directDependencyWeight: number;
+	runtimeDependencyWeight: number;
+	typeDependencyWeight: number;
+	conceptualProximityWeight: number;
 	reverseDependencyWeight: number;
 	callHierarchyWeight: number;
 	definitionWeight: number;
@@ -34,9 +37,10 @@ export async function getHeuristicRelevantFiles(
 	allScannedFiles: ReadonlyArray<vscode.Uri>,
 	projectRoot: vscode.Uri,
 	activeEditorContext?: PlanGenerationContext["editorContext"],
-	fileDependencies?: Map<string, string[]>,
+	fileDependencies?: Map<string, DependencyRelation[]>,
 	reverseFileDependencies?: Map<string, string[]>,
 	activeSymbolDetailedInfo?: ActiveSymbolDetailedInfo,
+	semanticGraph?: Map<string, { relatedPath: string; score: number }[]>,
 	cancellationToken?: vscode.CancellationToken,
 	options?: Partial<HeuristicSelectionOptions>
 ): Promise<vscode.Uri[]> {
@@ -48,7 +52,11 @@ export async function getHeuristicRelevantFiles(
 		maxReverseDependencies: options?.maxReverseDependencies ?? 10,
 		maxCallHierarchyFiles: options?.maxCallHierarchyFiles ?? 10,
 		sameDirectoryWeight: options?.sameDirectoryWeight ?? LOW_RELEVANCE,
-		directDependencyWeight: options?.directDependencyWeight ?? MEDIUM_RELEVANCE,
+		runtimeDependencyWeight:
+			options?.runtimeDependencyWeight ?? HIGH_RELEVANCE * 1.5,
+		typeDependencyWeight: options?.typeDependencyWeight ?? MEDIUM_RELEVANCE,
+		conceptualProximityWeight:
+			options?.conceptualProximityWeight ?? LOW_RELEVANCE,
 		reverseDependencyWeight:
 			options?.reverseDependencyWeight ?? MEDIUM_RELEVANCE,
 		callHierarchyWeight: options?.callHierarchyWeight ?? HIGH_RELEVANCE,
@@ -168,11 +176,20 @@ export async function getHeuristicRelevantFiles(
 
 		// Score based on dependencies
 		if (activeFileRelativePath) {
-			if (
-				fileDependencies?.get(activeFileRelativePath)?.includes(relativePath)
-			) {
-				score += effectiveOptions.directDependencyWeight;
+			const dependencies = fileDependencies?.get(activeFileRelativePath);
+			if (dependencies) {
+				for (const dep of dependencies) {
+					if (dep.path === relativePath) {
+						if (dep.relationType === "runtime") {
+							score += effectiveOptions.runtimeDependencyWeight;
+						} else if (dep.relationType === "type") {
+							score += effectiveOptions.typeDependencyWeight;
+						}
+						break;
+					}
+				}
 			}
+
 			if (
 				reverseFileDependencies
 					?.get(activeFileRelativePath)

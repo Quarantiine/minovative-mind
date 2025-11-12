@@ -15,6 +15,7 @@ import { scanWorkspace, clearScanCache } from "../context/workspaceScanner";
 import {
 	buildDependencyGraph,
 	buildReverseDependencyGraph,
+	DependencyRelation, // 1. Update the import to include DependencyRelation
 } from "../context/dependencyGraphBuilder";
 import {
 	selectRelevantFilesAI,
@@ -104,8 +105,9 @@ export class ContextService {
 	private postMessageToWebview: (message: any) => void;
 	private sequentialContextService?: SequentialContextService;
 	private disposables: vscode.Disposable[] = [];
-	private fileDependencies?: Map<string, string[]>;
-	private reverseFileDependencies?: Map<string, string[]>;
+	// 2. Change class properties types
+	private fileDependencies?: Map<string, DependencyRelation[]>;
+	private reverseFileDependencies?: Map<string, DependencyRelation[]>;
 	private areDependenciesComputed: boolean = false;
 	private lastProcessedOperationId: string | undefined; // Track the last operation ID
 
@@ -140,8 +142,9 @@ export class ContextService {
 				workspaceRoot,
 				this.postMessageToWebview,
 				this.settingsManager,
-				this.fileDependencies ?? new Map<string, string[]>(),
-				this.reverseFileDependencies ?? new Map<string, string[]>()
+				// 3. Update default Map initialization type
+				this.fileDependencies ?? new Map<string, DependencyRelation[]>(),
+				this.reverseFileDependencies ?? new Map<string, DependencyRelation[]>()
 			);
 		}
 		return this.sequentialContextService;
@@ -370,6 +373,30 @@ export class ContextService {
 		);
 
 		return foundUris; // Deduplication will happen in the main method
+	}
+
+	/**
+	 * Converts a map of file dependencies (which includes relation type) into a simplified
+	 * map containing only the dependency paths (strings).
+	 * This conversion is necessary when passing data to components that only need path strings.
+	 * @param dependencyMap The input map of path -> DependencyRelation[]
+	 * @returns The output map of path -> string[]
+	 */
+	private _convertDependencyMapToStringMap(
+		dependencyMap?: Map<string, DependencyRelation[]>
+	): Map<string, string[]> {
+		if (!dependencyMap) {
+			return new Map<string, string[]>();
+		}
+
+		const stringMap = new Map<string, string[]>();
+
+		for (const [importerPath, relations] of dependencyMap.entries()) {
+			const paths = relations.map((rel) => rel.path);
+			stringMap.set(importerPath, paths);
+		}
+
+		return stringMap;
 	}
 
 	public async buildProjectContext(
@@ -925,7 +952,8 @@ export class ContextService {
 						},
 						modelName: DEFAULT_FLASH_LITE_MODEL, // Use the default model for selection
 						cancellationToken,
-						fileDependencies,
+						fileDependencies:
+							this._convertDependencyMapToStringMap(fileDependencies),
 						preSelectedHeuristicFiles: [], // Pass heuristicSelectedFiles
 						fileSummaries: fileSummariesForAI, // Pass the generated file summaries
 						selectionOptions: {
