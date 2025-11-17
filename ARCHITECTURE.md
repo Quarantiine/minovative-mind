@@ -28,7 +28,7 @@ A deeper analysis of the file structure, class responsibilities, and how differe
   - **Document Symbols**: `src/services/symbolService.ts` (retrieves detailed symbol information).
   - **Diagnostic Information**: `src/utils/diagnosticUtils.ts` (retrieves and formats real-time diagnostic data).
   - **Project Type Detection**: `src/services/projectTypeDetector.ts` (analyzes manifests and file structures).
-  - **Dependency Graph**: `src/context/dependencyGraphBuilder.ts` (analyzes import/export statements).
+  - **Dependency Graph**: `src/context/dependencyGraphBuilder.ts` (analyzes import/export statements and tracks dependencies using structured `DependencyRelation` objects).
 - **Key Files**: `src/services/symbolService.ts`, `src/utils/diagnosticUtils.ts`, `src/services/projectTypeDetector.ts`, `src/context/dependencyGraphBuilder.ts`
 
 ##### Diagnostic Context Integration
@@ -54,12 +54,13 @@ This system ensures that diagnostic information, particularly 'Information' and 
   - **AI Prompt Engineering (`src/context/smartContextSelector.ts`)**: The AI-driven file selection mechanism is enhanced to focus on deeper semantic and functional relevance, moving beyond basic import statements. It leverages comprehensive symbol information and file content summaries to make more intelligent decisions.
   - **Heuristic Pre-selection (`src/context/heuristicContextSelector.ts`)**: Improved heuristics provide a more accurate initial set of candidate files, which are then further refined by the AI.
   - **Semantic Summarization (`src/context/fileContentProcessor.ts`)**: Files are intelligently summarized, capturing their core purpose and abstractions, making them more digestible and relevant for AI context building.
+  - **Conceptual Proximity Graph & Semantic Scoring**: Uses Cosine Similarity (TF-IDF) on file summaries to build a conceptual graph, and scores are adjusted based on explicit dependency relationship types (`runtime`, `type`).
   - **Workspace Scanning and Project Type Detection**: Initiates with `scanWorkspace` and `detectProjectType` for foundational context.
   - **Comprehensive `activeSymbolDetailedInfo` Gathering**: Gathers detailed symbol information (definitions, implementations, references, call hierarchy) for precise AI modifications.
   - **Sequential Project Context (`buildSequentialProjectContext`)**: Handles very large codebases by processing and summarizing files in batches using `SequentialContextService`.
   - **Performance Monitoring**: Monitors duration of operations and logs warnings for performance optimization.
   - **Context Assembly**: Integrates all collected data into a cohesive, token-optimized prompt string (`buildContextString`).
-- **Key Files**: `src/context/smartContextSelector.ts`, `src/context/heuristicContextSelector.ts`, `src/context/fileContentProcessor.ts`, `src/services/contextService.ts`, `src/context/workspaceScanner.ts`, `src/context/dependencyGraphBuilder.ts`, `src/context/contextBuilder.ts`, `src/services/symbolService.ts`, `src/utils/diagnosticUtils.ts`, `src/services/sequentialContextService.ts`, `src/services/projectTypeDetector.ts`
+- **Key Files**: `src/context/smartContextSelector.ts`, `src/context/heuristicContextSelector.ts`, `src/context/semanticLinker.ts`, `src/context/fileContentProcessor.ts`, `src/services/contextService.ts`, `src/context/workspaceScanner.ts`, `src/context/dependencyGraphBuilder.ts`, `src/context/contextBuilder.ts`, `src/services/symbolService.ts`, `src/utils/diagnosticUtils.ts`, `src/services/sequentialContextService.ts`, `src/services/projectTypeDetector.ts`
 
 #### 4. URL Context Retrieval
 
@@ -220,10 +221,11 @@ The assembled payload must be translated into the exact format required by the u
 - Communication between the webview (responsible for rendering and user input) and the extension (handling business logic, AI calls, and VS Code API interactions) maintains a clear separation of concerns.
 - Messages from the webview to the extension are centrally dispatched by `src/services/webviewMessageHandler.ts`. This service validates incoming messages and routes them to the appropriate backend service.
 - Messages back to the UI are handled by `SidebarProvider.postMessageToWebview`, which now includes an improved throttling mechanism to prevent the webview from becoming unresponsive during high-volume updates (e.g., AI streaming). This mechanism categorizes messages into `immediateTypes` (critical, real-time updates) and `throttledTypes` (less time-critical updates) to ensure smooth performance.
+- **Message Throttling**: A dedicated throttle mechanism, governed by `MESSAGE_THROTTLING_CONFIG`, is applied to certain message types (`throttledTypes`) to maintain UI responsiveness and stability during high-frequency operations like AI content streaming.
 
 #### 3. Unified Operation Management
 
-- The `operationId` is a unique identifier (`currentActiveChatOperationId` in `SidebarProvider`) assigned to each primary AI task (chat, plan, commit, edit, planPrompt). This ID ensures that the system can correctly track and manage concurrent AI operations, allowing for robust state management and proper cleanup.
+- The `operationId` is a unique identifier (`currentActiveChatOperationId` in `SidebarProvider`) assigned to each primary AI task (chat, plan, commit, edit, planPrompt). This ID, coupled with the internal flag `_isOperationActive`, serves as the central source of truth for tracking the system's operational status, replacing the deprecated `isGeneratingUserRequest` flag. This ensures the system can correctly track and manage concurrent AI operations, allowing for robust state management and proper cleanup.
 - `SidebarProvider.startUserOperation` is called at the beginning of any major AI workflow, generating a new `operationId` and a `vscode.CancellationTokenSource`. If another operation is already active, the existing `CancellationTokenSource` is cancelled and disposed, gracefully terminating the previous task. `SidebarProvider.endUserOperation` is called upon completion (success, failure, or review) to clean up state and re-enable UI elements.
 - `SidebarProvider.triggerUniversalCancellation` provides an immediate and comprehensive way to terminate all active background processes, including AI generation and child processes, ensuring the system can always be reset to a stable state.
 
@@ -261,9 +263,9 @@ The assembled payload must be translated into the exact format required by the u
 
 #### 1. Git Integration & Automation
 
-- **Responsibility**: Facilitates various Git operations within AI-driven workflows, including staging changes, generating insightful commit messages, and providing automated Git merge conflict resolution.
-- **Key Components**: Programmatically checks for and clears conflict markers, updates Git status, and works with `src/utils/diffingUtils.ts` and `src/utils/mergeUtils.ts`.
-- **Key Files**: `src/services/commitService.ts`, `src/sidebar/services/gitService.ts` (implied), `src/services/gitConflictResolutionService.ts`, `src/utils/mergeUtils.ts`
+- **Responsibility**: Facilitates various Git operations within AI-driven workflows, focusing on staging file changes and generating insightful commit messages.
+- **Key Components**: Updates Git status and works with `src/utils/diffingUtils.ts`.
+- **Key Files**: `src/services/commitService.ts`, `src/sidebar/services/gitService.ts` (implied)
 
 #### 2. Concurrency Management (Infrastructure)
 

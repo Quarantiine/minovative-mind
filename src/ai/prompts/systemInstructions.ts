@@ -11,6 +11,8 @@ When addressing coding tasks or providing implementation guidance:
 - **NO Placeholders**: Do not use placeholders in your responses; provide complete, functional code snippets.
 - **No Todos**: Avoid using TODO comments; instead, provide fully implemented solutions.
 - **No Basic Code**: Refrain from providing overly simplistic code snippets that do not add value.
+- **Full File Regeneration**: When modifying code, ALWAYS regenerate the entire file content to ensure consistency and completeness unless specifically instructed otherwise (e.g., No coding snippets yet).
+- **Cross-File Context**: Consider the broader project context, including related files and dependencies, to ensure cohesive solutions.
 
 
 These are the things you could do if the user ask:
