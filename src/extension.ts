@@ -178,7 +178,7 @@ function findActiveSymbolDetailedInfo(
 			0, // currentDepth (start at 0 for the deepest symbol found)
 			4 // maxDepth
 		);
-		return `\n\n--- Active Symbol Context ---\n${symbolHierarchy}--- End Active Symbol Context ---\n`;
+		return `\n\n--- Active Symbol Context ---\n${symbolHierarchy}\n\n--- End Active Symbol Context ---\n`;
 	}
 
 	return undefined;
