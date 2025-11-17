@@ -108,6 +108,7 @@ export class SettingsManager {
 
 	public initialize(): void {
 		this.loadSettingsFromStorage();
+		this.updateWebviewOptimizationSettings();
 	}
 
 	public getSelectedModelName(): string {
@@ -394,6 +395,16 @@ export class SettingsManager {
 					DEFAULT_MODEL
 				);
 			}
+
+			// Load and log optimization setting
+			const heuristicEnabled = this.getSetting<boolean>(
+				HEURISTIC_SELECTION_ENABLED_KEY,
+				DEFAULT_OPTIMIZATION_SETTINGS.heuristicSelectionEnabled
+			);
+			console.log(
+				"Loaded heuristic selection enabled status:",
+				heuristicEnabled
+			);
 		} catch (error) {
 			console.error("Error loading settings from storage:", error);
 			this._selectedModelName = DEFAULT_MODEL;
