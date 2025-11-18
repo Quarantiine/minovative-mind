@@ -89,8 +89,8 @@ Minovative Mind builds a profound understanding of your project to provide highl
 
 ### 3.3 Intelligent File Relevance Engine
 
-- **Hybrid File Selection**: Employs a combination of heuristic (rule-based) and AI-driven (smart) selection strategies to identify the most relevant files for context.
-- **Prioritized Context**: Prioritizes files that are recently modified, linked by symbols, or are directly related to the user's active context, with refined relevance scoring considering file dependency graphs.
+- **Semantic Linking & Conceptual Proximity**: File relevance is augmented by Semantic Linking, and prioritization is based on conceptual topic proximity scoring (e.g., TF-IDF analysis).
+- **Prioritized Context**: Prioritizes files that are recently modified, linked by symbols, or are directly related to the user's active context, with refined relevance scoring considering file dependency graphs and explicit dependency relationship types (`runtime`, `type`).
 - **Intelligent File Summarization**: Summarizes file content to fit within token limits while preserving critical information, including detailed file complexity estimation and enhanced main purpose detection.
 - **Configurable Heuristic Selection**: Utilizes configurable rules (e.g., directory proximity, dependency analysis, symbol relevance) for intelligent file selection.
 - **Dependency Extraction**: Performs expanded and refined dependency extraction directly from code, enriching file summaries.
@@ -109,6 +109,7 @@ Minovative Mind prioritizes user control, project security, and transparent oper
 
 ### 4.1 User Control & Transparency
 
+- **Centralized Concurrency Control**: Concurrency management is now centralized and robust, ensuring predictable behavior and overall system reliability during multi-step AI operations.
 - **Real-time Progress Indicators**: Provides constant, visible feedback on ongoing AI tasks using VS Code notifications.
 - **Cancellable Tasks**: Supports cancellation of most AI-driven tasks via `CancellationToken`, allowing users to interrupt long-running operations.
 - **Transparent UI Updates**: Ensures all UI changes and cancellations are clearly communicated and reflected in the extension's interface.

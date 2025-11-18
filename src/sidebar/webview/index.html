@@ -137,8 +137,9 @@
     </div>
 
     <div class="input-actions-above"
-      style="padding-bottom: 5px; padding-top: 5px; width: 100%; display: flex; justify-content: start;">
+      style="padding-bottom: 5px; padding-top: 5px; width: 100%; display: flex; justify-content: start; gap: 5px;">
       <button id="openFileListButton" title="Open File List"></button>
+      <button id="heuristic-context-toggle" title="Heuristic Context Toggle"></button>
     </div>
 
     <!-- Original Image Previews Area and its contents moved as per instructions -->
@@ -147,7 +148,7 @@
         style="display: none; color: var(--vscode-editor-foreground); font-size: 0.85em; padding: 4px 0;"></div>
       <div id="edit-message-help-text"
         style="display: none; color: var(--vscode-editor-foreground); font-size: 0.85em; padding: 4px 0;"></div>
-      <textarea id="chat-input" rows="3" placeholder="Chat with Mino, use '/' (commands)"></textarea>
+      <textarea id="chat-input" rows="3" placeholder="Chat with Mino or use '/' (commands)"></textarea>
 
       <div class="input-action-buttons">
         <button id="send-button" title="Send Message">S</button>

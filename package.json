@@ -21,7 +21,7 @@
 		"url": "https://github.com/Minovative-Technologies/minovative-mind/issues"
 	},
 	"homepage": "https://github.com/Minovative-Technologies/minovative-mind/blob/main/README.md",
-	"version": "2.37.1",
+	"version": "2.40.3",
 	"publisher": "MinovativeTechnologies",
 	"icon": "media/mino-logo-dark.png",
 	"banner": {
@@ -121,6 +121,7 @@
 		"@types/bluebird": "^3.5.42",
 		"@types/diff-match-patch": "*",
 		"@types/glob": "^8.1.0",
+		"@types/node": "^24.10.1",
 		"@types/uuid": "^10.0.0",
 		"@types/vscode": "^1.80.0",
 		"@typescript-eslint/eslint-plugin": "^8.37.0",
@@ -141,12 +142,12 @@
 		"@fortawesome/free-solid-svg-icons": "^6.7.2",
 		"@google/generative-ai": "^0.24.1",
 		"@types/markdown-it": "^14.1.2",
-		"@vscode/test-cli": "^0.0.11",
 		"bluebird": "^3.7.2",
 		"diff-match-patch": "^1.0.5",
 		"highlight.js": "^11.11.1",
 		"ignore": "^7.0.4",
 		"markdown-it": "^14.1.0",
+		"mime": "^4.1.0",
 		"uuid": "^11.1.0",
 		"vscode-uri": "^3.1.0",
 		"zod": "^4.0.10"

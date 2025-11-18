@@ -5,6 +5,8 @@ import { FileChangeEntry } from "../types/workflow";
 import { ActiveSymbolDetailedInfo } from "../services/contextService";
 import { intelligentlySummarizeFileContent } from "./fileContentProcessor";
 import { DEFAULT_SIZE } from "../sidebar/common/sidebarConstants";
+import { DependencyRelation } from "./dependencyGraphBuilder";
+import { buildSemanticGraph, SemanticGraph } from "./semanticLinker";
 
 // Configuration for context building - Adjusted for large context windows
 interface ContextConfig {
@@ -30,6 +32,11 @@ export const DEFAULT_CONTEXT_CONFIG: ContextConfig = {
 interface PrioritizedFile {
 	uri: vscode.Uri;
 	score: number;
+}
+
+export interface HistoricalFile {
+	uri: vscode.Uri;
+	topic: string;
 }
 
 /**
@@ -68,12 +75,14 @@ function _initializeBuildContext(
 function _prioritizeFilesForContext(
 	relevantFiles: vscode.Uri[],
 	workspaceRoot: vscode.Uri,
-	dependencyGraph: Map<string, string[]> | undefined,
+	dependencyGraph: Map<string, DependencyRelation[]> | undefined,
 	reverseDependencyGraph: Map<string, string[]> | undefined,
 	activeSymbolDetailedInfo: ActiveSymbolDetailedInfo | undefined,
 	documentSymbols: Map<string, vscode.DocumentSymbol[] | undefined> | undefined,
 	config: ContextConfig,
-	historicallyRelevantFiles?: vscode.Uri[]
+	historicallyRelevantFiles?: HistoricalFile[],
+	semanticGraph?: SemanticGraph,
+	currentTopic?: string
 ): vscode.Uri[] {
 	let prioritizedFiles: PrioritizedFile[] = relevantFiles.map((uri) => ({
 		uri,
@@ -156,16 +165,35 @@ function _prioritizeFilesForContext(
 			pf.score += 500;
 		}
 
-		// Medium-high priority: Direct dependencies of other highly-scored files or the active file
+		// Medium-high priority: Direct dependencies
 		const directDependencies = dependencyGraph?.get(relativePath);
-		if (directDependencies && directDependencies.length > 0) {
-			pf.score += 100; // Bonus for files that import others
+		if (directDependencies) {
+			for (const dep of directDependencies) {
+				switch (dep.relationType) {
+					case "runtime":
+						pf.score += 100;
+						break;
+					case "type":
+						pf.score += 50;
+						break;
+					case "unknown":
+						pf.score += 20;
+						break;
+				}
+			}
 		}
 
 		// Medium priority: Files that import the active file (reverse dependencies) or are imported by other relevant files
 		const reverseDependencies = reverseDependencyGraph?.get(relativePath);
 		if (reverseDependencies && reverseDependencies.length > 0) {
 			pf.score += 80; // Bonus for files that are imported by others
+		}
+
+		// New scoring: Conceptual Proximity
+		if (semanticGraph && currentTopic) {
+			// Removed conditional scoring based on file summary keyword inclusion.
+			// This logic proved unreliable and was disabled for better performance/accuracy.
+			const fileNode = semanticGraph.get(relativePath);
 		}
 
 		// Low-medium priority: Files with significant symbols, even if not directly related to active symbol
@@ -178,13 +206,22 @@ function _prioritizeFilesForContext(
 		}
 	}
 
-	if (historicallyRelevantFiles && historicallyRelevantFiles.length > 0) {
-		const historicalPaths = new Set(
-			historicallyRelevantFiles.map((uri) => uri.fsPath)
+	if (
+		historicallyRelevantFiles &&
+		historicallyRelevantFiles.length > 0 &&
+		currentTopic
+	) {
+		const historicalFileMap = new Map(
+			historicallyRelevantFiles.map((hf) => [hf.uri.fsPath, hf.topic])
 		);
 		for (const pf of prioritizedFiles) {
-			if (historicalPaths.has(pf.uri.fsPath)) {
-				pf.score += 2000;
+			if (historicalFileMap.has(pf.uri.fsPath)) {
+				const historicalTopic = historicalFileMap.get(pf.uri.fsPath)!;
+				if (historicalTopic.toLowerCase() === currentTopic.toLowerCase()) {
+					pf.score += 2000; // Topic match
+				} else {
+					pf.score += 200; // Topic mismatch but still historical
+				}
 			}
 		}
 	}
@@ -239,7 +276,7 @@ async function _processFileContentsForContext(
 	currentContext: string,
 	currentTotalLength: number,
 	filesSkippedForTotalSize: number,
-	dependencyGraph?: Map<string, string[]>,
+	dependencyGraph?: Map<string, DependencyRelation[]>,
 	documentSymbols?: Map<string, vscode.DocumentSymbol[] | undefined>,
 	activeSymbolDetailedInfo?: ActiveSymbolDetailedInfo
 ): Promise<{
@@ -279,7 +316,7 @@ async function _processFileContentsForContext(
 				const maxImportsToDisplay = 10;
 				const displayedImports = imports
 					.slice(0, maxImportsToDisplay)
-					.map((imp) => `'${imp}'`)
+					.map((imp) => `'${imp.path}'`)
 					.join(", ");
 				const remainingImportsCount = imports.length - maxImportsToDisplay;
 				const suffix =
@@ -367,15 +404,14 @@ async function _processFileContentsForContext(
 
 		// Truncate fileContentForContext if it exceeds the calculated maxSummarizedContentLength
 		let actualFileContentToAdd = fileContentForContext;
-		let currentFileTruncatedForTotalSize = false;
-
+		// Removed: let currentFileTruncatedForTotalSize = false;
 		if (fileContentForContext.length > maxSummarizedContentLength) {
 			actualFileContentToAdd = fileContentForContext.substring(
 				0,
 				maxSummarizedContentLength
 			);
 			truncatedForSmartSummary = true; // Mark as truncated, even if originally wasn't (now it is for total size)
-			currentFileTruncatedForTotalSize = true;
+			// Removed: currentFileTruncatedForTotalSize = true;
 		}
 
 		contentToAdd =
@@ -472,11 +508,12 @@ export async function buildContextString(
 	workspaceRoot: vscode.Uri,
 	config: ContextConfig = DEFAULT_CONTEXT_CONFIG,
 	recentChanges?: FileChangeEntry[],
-	dependencyGraph?: Map<string, string[]>,
+	dependencyGraph?: Map<string, DependencyRelation[]>,
 	documentSymbols?: Map<string, vscode.DocumentSymbol[] | undefined>,
 	activeSymbolDetailedInfo?: ActiveSymbolDetailedInfo,
 	reverseDependencyGraph?: Map<string, string[]>,
-	historicallyRelevantFiles?: vscode.Uri[]
+	historicallyRelevantFiles?: HistoricalFile[],
+	userRequest?: string
 ): Promise<string> {
 	let { context, currentTotalLength } = _initializeBuildContext(
 		workspaceRoot,
@@ -575,6 +612,10 @@ export async function buildContextString(
 	}
 
 	// 7. Prioritize Files for Content Inclusion
+	// Assumes file summaries are available for semantic graph construction.
+	const semanticGraph = buildSemanticGraph(new Map<string, string>());
+	const currentTopic = userRequest;
+
 	const sortedRelevantFiles = _prioritizeFilesForContext(
 		relevantFiles,
 		workspaceRoot,
@@ -583,7 +624,9 @@ export async function buildContextString(
 		activeSymbolDetailedInfo,
 		documentSymbols,
 		config,
-		historicallyRelevantFiles
+		historicallyRelevantFiles,
+		semanticGraph,
+		currentTopic
 	);
 
 	// 8. Process File Contents
