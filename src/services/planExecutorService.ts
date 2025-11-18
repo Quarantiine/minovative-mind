@@ -164,7 +164,7 @@ export class PlanExecutorService {
 		} finally {
 			this.provider.activeChildProcesses.forEach((cp) => cp.kill());
 			this.provider.activeChildProcesses = [];
-			this._disposeExecutionTerminals();
+			this.commandExecutionTerminals = [];
 
 			// Dedicated terminals are not disposed automatically here; they persist.
 			// This allows users to review command output after the plan completes.
@@ -474,11 +474,6 @@ export class PlanExecutorService {
 		}
 
 		return affectedFileUris;
-	}
-
-	private _disposeExecutionTerminals() {
-		this.commandExecutionTerminals.forEach((terminal) => terminal.dispose());
-		this.commandExecutionTerminals = [];
 	}
 
 	private _getStepDescription(

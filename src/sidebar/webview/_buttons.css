@@ -154,7 +154,7 @@
 	min-width: var(--copy-button-size); /* MODIFIED */
 	height: var(--copy-button-size); /* ADDED */
 	min-height: var(--copy-button-size); /* MODIFIED */
-	background-color: var(--vscode-button-secondaryBackground);
+	background-color: var(--vscode-button-background);
 	border: 1px solid var(--vscode-button-border);
 	color: var(--copy-button-color); /* MODIFIED */
 	border-radius: var(--border-radius);
