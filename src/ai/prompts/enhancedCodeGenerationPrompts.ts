@@ -284,6 +284,15 @@ Language: ${languageId}
 
 ${_formatFileStructureAnalysis(fileAnalysis)}
 
+**CRITICAL OUTPUT CONSTRAINTS:**
+- You MUST return the complete, full content of the entire file after modifications.
+- The entire output MUST be wrapped in a single, properly formatted markdown code block.
+- A path marker (like \`// Path: ${filePath}\`) is NOT required, but the language fence is mandatory.
+- Example: 
+\`\`\`${languageId}
+// ... full file content only ...
+\`\`\`
+
 **Instructions:**
 ${modificationPrompt}
 
