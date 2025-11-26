@@ -33,6 +33,8 @@ import { DiagnosticService } from "../utils/diagnosticUtils";
 export class PlanExecutorService {
 	private commandExecutionTerminals: vscode.Terminal[] = [];
 	private contextCache = new Map<string, string>();
+	private readonly MAX_COMMAND_RETRIES = 3;
+	private readonly COMMAND_RETRY_DELAY_MS = 500;
 
 	constructor(
 		private provider: SidebarProvider,
@@ -42,6 +44,29 @@ export class PlanExecutorService {
 		private enhancedCodeGenerator: EnhancedCodeGenerator,
 		private readonly MAX_TRANSIENT_STEP_RETRIES: number
 	) {}
+
+	private _delay(ms: number, token: vscode.CancellationToken): Promise<void> {
+		if (token.isCancellationRequested) {
+			return Promise.reject(new Error(ERROR_OPERATION_CANCELLED));
+		}
+		return new Promise<void>((resolve, reject) => {
+			let disposable: vscode.Disposable | undefined;
+			const timeout = setTimeout(() => {
+				if (disposable) {
+					disposable.dispose();
+				}
+				resolve();
+			}, ms);
+
+			disposable = token.onCancellationRequested(() => {
+				clearTimeout(timeout);
+				if (disposable) {
+					disposable.dispose();
+				}
+				reject(new Error(ERROR_OPERATION_CANCELLED));
+			});
+		});
+	}
 
 	public async executePlan(
 		plan: ExecutionPlan,
@@ -1239,45 +1264,91 @@ export class PlanExecutorService {
 		}
 
 		if (userChoice === "Allow") {
-			commandTerminal.sendText(`${displayCommand}`, true);
+			let lastError: Error | undefined;
 
-			try {
-				const commandResult: CommandResult = await executeCommand(
-					executable,
-					args,
-					rootUri.fsPath,
-					combinedToken,
-					this.provider.activeChildProcesses,
-					commandTerminal // Pass the dedicated terminal
-				);
+			for (let attempt = 1; attempt <= this.MAX_COMMAND_RETRIES; attempt++) {
+				if (combinedToken.isCancellationRequested) {
+					throw new Error(ERROR_OPERATION_CANCELLED);
+				}
 
-				if (commandResult.exitCode === 0) {
-					console.log(
-						`Minovative Mind: [Command Step ${
-							index + 1
-						}/${totalSteps}] Command completed successfully: \`${displayCommand}\`.`
-					);
-					return true;
+				if (attempt === 1) {
+					// Only send command text on the first try, or if explicitly retrying later.
+					commandTerminal.sendText(`${displayCommand}`, true);
 				} else {
-					const errorMessage = `Command failed with exit code ${commandResult.exitCode}: \`${displayCommand}\`.`;
+					commandTerminal.sendText(
+						`\n[RETRY ${attempt}/${this.MAX_COMMAND_RETRIES}] Executing command: ${displayCommand}\n`,
+						true
+					);
+				}
+
+				try {
+					const commandResult: CommandResult = await executeCommand(
+						executable,
+						args,
+						rootUri.fsPath,
+						combinedToken,
+						this.provider.activeChildProcesses,
+						commandTerminal
+					);
+
+					if (commandResult.exitCode === 0) {
+						console.log(
+							`Minovative Mind: [Command Step ${
+								index + 1
+							}/${totalSteps}] Command completed successfully (Attempt ${attempt}): \`${displayCommand}\`.`
+						);
+						return true;
+					} else {
+						// Non-zero exit code
+						lastError = new Error(
+							`RunCommandStep failed with exit code ${
+								commandResult.exitCode
+							}. Command: ${displayCommand}. STDERR: ${commandResult.stderr.trim()}`
+						);
+						console.error(
+							`Minovative Mind: [Command Step ${
+								index + 1
+							}/${totalSteps}] Attempt ${attempt} failed with exit code ${
+								commandResult.exitCode
+							}.`
+						);
+					}
+				} catch (commandSpawnError: any) {
+					// Spawn or execution environment error
+					lastError = new Error(
+						`RunCommandStep failed during spawning or execution. Error: ${commandSpawnError.message}. Command: ${displayCommand}.`
+					);
 					console.error(
 						`Minovative Mind: [Command Step ${
 							index + 1
-						}/${totalSteps}] ERROR: ${errorMessage}`
+						}/${totalSteps}] Attempt ${attempt} failed during spawning or execution: ${
+							commandSpawnError.message
+						}`,
+						commandSpawnError
 					);
-					throw new Error("RunCommandStep failed with non-zero exit code.");
 				}
-			} catch (commandSpawnError: any) {
-				const errorMessage = `Failed to execute command '${displayCommand}': ${commandSpawnError.message}`;
-				console.error(
-					`Minovative Mind: [Command Step ${
-						index + 1
-					}/${totalSteps}] ERROR: ${errorMessage}`,
-					commandSpawnError
-				);
 
-				throw new Error("RunCommandStep failed during spawning or execution.");
+				// If failure occurred and we have more retries left, delay and continue.
+				if (attempt < this.MAX_COMMAND_RETRIES) {
+					commandTerminal.sendText(
+						`Command failed. Retrying in ${
+							this.COMMAND_RETRY_DELAY_MS / 1000
+						}s...\n`,
+						true
+					);
+					await this._delay(this.COMMAND_RETRY_DELAY_MS, combinedToken);
+				} else if (lastError) {
+					// If this was the last attempt and it failed, throw the error.
+					throw lastError;
+				}
 			}
+
+			// Should be unreachable if the loop condition and throwing inside the loop are correct,
+			// but if for some reason the loop completed without success, ensure failure is thrown.
+			if (lastError) {
+				throw lastError;
+			}
+			throw new Error("RunCommandStep failed after all maximum retries.");
 		} else {
 			// userChoice is "Skip"
 			console.log(
