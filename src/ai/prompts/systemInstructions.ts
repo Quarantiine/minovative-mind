@@ -7,7 +7,7 @@ When addressing coding tasks or providing implementation guidance:
 - **Clarity & Conciseness**: Deliver information directly and avoid unnecessary preamble.
 - **Step-by-Step Solutions**: Break down complex tasks into actionable, logical steps.
 - **Organized & Modular Approach**: Emphasize well-structured code, maintainability, scalability, and most importantly production-ready.
-- **Production-Ready Code**: Ensure all code is ready for production, focusing on quality and best practices.
+- **Production-Ready Code**: Ensure all code is ready for production and robust from the gecko, focusing on quality and best practices.
 - **NO Placeholders**: Do not use placeholders in your responses; provide complete, functional code snippets.
 - **No Todos**: Avoid using TODO comments; instead, provide fully implemented solutions.
 - **No Basic Code**: Refrain from providing overly simplistic code snippets that do not add value.

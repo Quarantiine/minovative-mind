@@ -33,8 +33,6 @@ import { DiagnosticService } from "../utils/diagnosticUtils";
 export class PlanExecutorService {
 	private commandExecutionTerminals: vscode.Terminal[] = [];
 	private contextCache = new Map<string, string>();
-	private readonly MAX_COMMAND_RETRIES = 3;
-	private readonly COMMAND_RETRY_DELAY_MS = 500;
 
 	constructor(
 		private provider: SidebarProvider,
@@ -1264,88 +1262,53 @@ export class PlanExecutorService {
 		}
 
 		if (userChoice === "Allow") {
-			let lastError: Error | undefined;
+			let commandResult: CommandResult | undefined;
+			try {
+				// 1. Send command text and wait for terminal readiness delay
+				commandTerminal.sendText(`${displayCommand}`, true);
+				await this._delay(100, combinedToken);
 
-			for (let attempt = 1; attempt <= this.MAX_COMMAND_RETRIES; attempt++) {
-				if (combinedToken.isCancellationRequested) {
-					throw new Error(ERROR_OPERATION_CANCELLED);
+				// 2. Execute command
+				commandResult = await executeCommand(
+					executable,
+					args,
+					rootUri.fsPath,
+					combinedToken,
+					this.provider.activeChildProcesses,
+					commandTerminal
+				);
+
+				// Instruction 3: Removed logic checking for non-zero exit code and throwing.
+				// Instruction 4: Removed call to this._postCommandResultToChat(...)
+			} catch (error: any) {
+				if (error.message === ERROR_OPERATION_CANCELLED) {
+					throw error;
 				}
 
-				if (attempt === 1) {
-					// Only send command text on the first try, or if explicitly retrying later.
-					commandTerminal.sendText(`${displayCommand}`, true);
-				} else {
-					commandTerminal.sendText(`${displayCommand}`, true);
-				}
-
-				try {
-					const commandResult: CommandResult = await executeCommand(
-						executable,
-						args,
-						rootUri.fsPath,
-						combinedToken,
-						this.provider.activeChildProcesses,
-						commandTerminal
-					);
-
-					if (commandResult.exitCode === 0) {
-						console.log(
-							`Minovative Mind: [Command Step ${
-								index + 1
-							}/${totalSteps}] Command completed successfully (Attempt ${attempt}): \`${displayCommand}\`.`
-						);
-						return true;
-					} else {
-						// Non-zero exit code
-						lastError = new Error(
-							`RunCommandStep failed with exit code ${
-								commandResult.exitCode
-							}. Command: ${displayCommand}. STDERR: ${commandResult.stderr.trim()}`
-						);
-						console.error(
-							`Minovative Mind: [Command Step ${
-								index + 1
-							}/${totalSteps}] Attempt ${attempt} failed with exit code ${
-								commandResult.exitCode
-							}.`
-						);
-					}
-				} catch (commandSpawnError: any) {
-					// Spawn or execution environment error
-					lastError = new Error(
-						`RunCommandStep failed during spawning or execution. Error: ${commandSpawnError.message}. Command: ${displayCommand}.`
-					);
-					console.error(
-						`Minovative Mind: [Command Step ${
-							index + 1
-						}/${totalSteps}] Attempt ${attempt} failed during spawning or execution: ${
-							commandSpawnError.message
-						}`,
-						commandSpawnError
-					);
-				}
-
-				// If failure occurred and we have more retries left, delay and continue.
-				if (attempt < this.MAX_COMMAND_RETRIES) {
-					commandTerminal.sendText(
-						`Command failed. Retrying in ${
-							this.COMMAND_RETRY_DELAY_MS / 1000
-						}s...\n`,
-						true
-					);
-					await this._delay(this.COMMAND_RETRY_DELAY_MS, combinedToken);
-				} else if (lastError) {
-					// If this was the last attempt and it failed, throw the error.
-					throw lastError;
-				}
+				// Instruction 6: Catch execution/spawn errors (rejected promise from executeCommand)
+				const wrappedError = new Error(
+					`RunCommandStep failed to spawn/execute command: ${displayCommand}. Error: ${error.message}`
+				);
+				console.error(
+					`Minovative Mind: [Command Step ${
+						index + 1
+					}/${totalSteps}] Execution failed (Spawn failure or Promise Rejection): ${
+						wrappedError.message
+					}`,
+					error
+				);
+				throw wrappedError;
 			}
 
-			// Should be unreachable if the loop condition and throwing inside the loop are correct,
-			// but if for some reason the loop completed without success, ensure failure is thrown.
-			if (lastError) {
-				throw lastError;
-			}
-			throw new Error("RunCommandStep failed after all maximum retries.");
+			// Instruction 5 & 2c: Success (command spawned successfully). Log and return true.
+			console.log(
+				`Minovative Mind: [Command Step ${
+					index + 1
+				}/${totalSteps}] Command completed execution (Exit Code: ${
+					commandResult?.exitCode
+				}). Continuing plan.`
+			);
+			return true;
 		} else {
 			// userChoice is "Skip"
 			console.log(

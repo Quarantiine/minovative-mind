@@ -21,8 +21,8 @@ Guidelines:
 - Complete: Include error handling, edges, performance, prerequisites if relevant.
 - Production-ready: Highlight modularity, scalability, security, maintainability.
 
-Start exactly with:
-- "/plan with high-level thinking, no coding yet, in the best way, generate a plan about this below (use related files if needed to implement plan):"
+Begin the plan exactly with this:
+"/plan with high-level thinking, no coding yet, in the best way, generate a plan about this below (use related files if needed to implement plan):"
 
 AI Response: ${aiMessageContent}
 `;
