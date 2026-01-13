@@ -1,14 +1,5 @@
 # Now available free on VS Code Marketplace
 
-**IMPORTANT**: _Search up "Minovative Mind" in the VS Marketplace or Extensions Store in the VS Code application_
-
-- [**`MARKETPLACE_GETTING_STARTED.md`**](./MARKETPLACE_GETTING_STARTED.md)
-- [**`VS Code Extension`**](https://marketplace.visualstudio.com/items?itemName=MinovativeTechnologies.minovative-mind-vscode)
-
----
-
----
-
 ## Minovative Mind (Now Public, Easy to Use, and Free!)
 
 ### An open-source AI agent that automates software development, powerful enough that it built itself by vibe coding
@@ -140,8 +131,6 @@ My vision is to empower every developer with a powerful, free, and open-source A
 ## 🙌 Join US! How to Support
 
 - ⭐ **Star us on GitHub** to show your support!
-- 💖 **Support development** on [Patreon](https://www.patreon.com/c/minovativetechnologies/membership) — every contribution can help us grow!
-- 🗣️ **Join the conversation** on our [Minovative Mind Discord](https://discord.gg/KFkMgAH3EG) or follow us on [X/Twitter](https://x.com/minovative_tech).
 
 ## Learn more about the project
 
